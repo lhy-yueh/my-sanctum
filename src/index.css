@@ -1,0 +1,58 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+
+@theme {
+  --font-typewriter: "Special Elite", "Courier New", Courier, monospace;
+  
+  --color-sanctuary-bg: #050505;
+  --color-sanctuary-ink: #ffffff;
+  
+  --animate-breathing: breathing 4s ease-in-out infinite;
+  --animate-shimmer: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes breathing {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0%, 100% { transform: translateY(0); opacity: 0.8; }
+  50% { transform: translateY(-5px); opacity: 1; }
+}
+
+@layer base {
+  body {
+    @apply bg-sanctuary-bg text-sanctuary-ink font-typewriter overflow-hidden;
+  }
+}
+
+.typewriter-cursor::after {
+  content: "|";
+  animation: blink 0.8s step-end infinite;
+}
+
+@keyframes blink {
+  from, to { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* 聊天内容容器的滑动设置 */
+.chat-content {
+    flex: 1;
+    overflow-y: auto; /* 允许纵向滚动 */
+    height: 100%;    /* 确保容器有高度才能滚动 */
+    
+    /* 美化滚动条，使其符合你现在的复古极简风格 */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* 为 Chrome/Safari 浏览器美化滚动条 */
+.chat-content::-webkit-scrollbar {
+    width: 4px;
+}
+.chat-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
