@@ -65,3 +65,4 @@ vite.config.ts.timestamp-*
 
 # System files
 .DS_Store
+.vercel
