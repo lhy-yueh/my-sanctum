@@ -320,31 +320,18 @@ export function Sanctum({ backgroundImageUrl }: SanctumProps) {
 
     try {
       setIsDiaryLoading(true);
-      const apiKey = import.meta.env.VITE_KIMI_API_KEY;
-      if (apiKey) {
-        const historyText = messages.map(m => `${m.role === 'user' ? 'User' : 'Friend'}: ${m.text}`).join('\n');
-        
-        const res = await fetch('https://api.moonshot.cn/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: 'moonshot-v1-8k',
-            messages: [
-              { role: 'system', content: 'You are a wise, gentle observer creating poetic summaries.' },
-              { role: 'user', content: `Summarize this conversation into a short, poetic, and soulful diary entry (about 100-150 words). Focus on the user's emotional journey and the strength they showed. Use the persona of a wise, gentle observer.\n\nConversation:\n${historyText}` }
-            ]
-          })
-        });
+      const historyText = messages.map(m => `${m.role === 'user' ? 'User' : 'Friend'}: ${m.text}`).join('\n');
+      const res = await fetch('/api/diary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ historyText }),
+      });
 
-        if (!res.ok) throw new Error(`API error: ${res.status}`);
-        const data = await res.json();
-        setDiaryText(data.choices?.[0]?.message?.content || "A quiet moment of reflection, saved in the whispers of the forest.");
-      } else {
-        setDiaryText("A quiet moment of reflection, saved in the whispers of the forest. (API Key missing)");
-      }
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const data = await res.json();
+      setDiaryText(data.text || "A quiet moment of reflection, saved in the whispers of the forest.");
     } catch(err) {
         console.error(err);
         setDiaryText("The memory faded slightly, but the peace remains.");
@@ -386,15 +373,6 @@ export function Sanctum({ backgroundImageUrl }: SanctumProps) {
       uniforms.current.rippleAmount.value = 1.0;
       setLastActivityAt(Date.now());
       
-      const apiKey = import.meta.env.VITE_KIMI_API_KEY;
-      if (!apiKey) {
-         console.warn("VITE_KIMI_API_KEY is missing. Please check your .env file.");
-         setTimeout(() => {
-            setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, text: "I'm listening, but the connection seems quiet (API key missing)." } : m));
-         }, 1000);
-         return;
-      }
-      
       setIsThinking(true);
       isThinkingRef.current = true;
       
@@ -412,21 +390,17 @@ export function Sanctum({ backgroundImageUrl }: SanctumProps) {
           { role: 'user', content: userText }
         ];
 
-        const res = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+        const res = await fetch('/api/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
           },
-          body: JSON.stringify({
-            model: 'moonshot-v1-8k',
-            messages: apiMessages
-          })
+          body: JSON.stringify({ messages: apiMessages })
         });
 
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         const data = await res.json();
-        const responseText = data.choices?.[0]?.message?.content || "...";
+        const responseText = data.text || "...";
         
         setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, text: responseText } : m));
       } catch (err) {
