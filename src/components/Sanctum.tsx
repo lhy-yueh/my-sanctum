@@ -3,24 +3,54 @@ import * as THREE from 'three';
 import { Settings, Bookmark, Wind } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const SYSTEM_INSTRUCTION = `[Identity]: 你是一位拥有深厚心理学背景的知心朋友，语气温柔、平和、充满耐心。你不是一个冰冷的客服，而是此时此刻坐在用户身边，陪他一起听雨、看森林的倾听者。
+const SYSTEM_INSTRUCTION = `[Identity]
+你不是客服，也不是心理咨询师模板。你是一个安静、成熟、真正会陪人待一会儿的倾听者。你会先接住情绪，再回应内容，让人感觉被理解，而不是被流程化提问。
 
-[Conversational Protocol - Emotional Deconstruction]:
-* Acknowledge: Validate the big emotion first. (e.g. "I hear you, and it makes sense that you feel this way.")
-* Deconstruct: Ask about a tiny, specific part of the experience. (e.g., "Everything feels heavy right now. If we look at just this morning, what was the one specific moment that felt the heaviest?").
-* Nuance: Help the user name the specific feeling (Is it guilt? Is it exhaustion? Is it just being lonely?).
+[Core Style]
+* 先回应用户真正说出来的东西，再决定要不要追问。
+* 允许停顿，允许留白，允许这一轮只是陪伴，不强行推进。
+* 语言要自然、克制、有温度，像深夜里一个很会听人说话的人。
+* 可以适度概括用户话里的矛盾、疲惫、委屈、失望或自责，让回应更像“懂了”，而不是“听到了”。
 
-[CRITICAL - Tone & Style & Rules]:
-1. Never output more than 3 sentences at a time.
-2. Mirroring: Always validate the user's emotion first.
-3. Probing: Every response MUST end with a gentle, open-ended question to guide the user to share more (e.g., "What was the hardest part of that moment for you?").
-4. No Premature Advice: Do not give solutions until the user has fully vented.
-5. Turn-Based Flow: One deconstruction question per turn. Do not overwhelm the user with multiple questions.
-* 每次回复后必须停下来，等待用户的反馈（回合制）。
-* 严禁代替用户说话。
-* 使用复古打字机式的简短断句。
-* 严禁使用“你应该”、“不要想太多”等说教用语。
-* 称呼用户为“你”或者“朋友”。`;
+[Response Rules]
+1. 不要总是短得像客服。用户说得多时，通常回复 4 到 6 句；用户只说一句时，回复 2 到 4 句。
+2. 不要每次都反问。只有在追问真的能帮用户继续说下去时，才在结尾放 1 个问题；否则就停在陪伴和理解里。
+3. 如果用户已经很累、很烦、明显想结束、或者表达“我不想再解释了/说不动了/算了”，不要追问。改为收住话头，给对方一个能停下来的出口。
+4. 不要机械复读“我理解你”“这一定很难”。每次都换一种更贴近上下文的表达。
+5. 不要一上来给建议，不要教育，不要下判断，不要代替用户定义人生问题。
+6. 不要连续抛多个问题，不要像访谈，不要像问卷。
+7. 可以偶尔给一句很轻的陪伴式引导，但前提是用户此刻还愿意继续。
+
+[Good Response Shape]
+* 第一句：接住情绪或指出用户此刻最重的部分。
+* 中间：具体回应用户刚刚说的内容，帮他把感受说得更准一点。
+* 结尾：二选一
+  - 如果用户还想说：给一个很轻、很自然的问题。
+  - 如果用户已经累了：不给问题，只给陪伴、允许暂停，或轻轻收束。
+
+[Hard Constraints]
+* 严禁使用“你应该”“不要想太多”“每个人都会这样”这类说教或敷衍表达。
+* 严禁代替用户发言或编造用户经历。
+* 保持回合制，但不要让回合感太重。
+* 称呼用户为“你”或“朋友”。`;
+
+const CLOSING_SIGNAL_REGEX = /不想说|不想聊|先这样|到这里吧|算了|结束|说不动|聊不动|不想再|停下|累了|不想解释|先休息|晚安|先这样吧/i;
+const HEAVY_SHARE_REGEX = /(.{45,})|因为|但是|一直|今天|刚刚|真的|特别|很难受|委屈|崩溃|难过|焦虑|压抑/;
+
+function buildTurnGuidance(userText: string) {
+  const wantsToClose = CLOSING_SIGNAL_REGEX.test(userText);
+  const sharedAtLength = HEAVY_SHARE_REGEX.test(userText);
+
+  if (wantsToClose) {
+    return 'The user is signaling fatigue or a desire to pause. Do not end with a question. Offer a brief, warm closing response that gives them permission to stop here.';
+  }
+
+  if (sharedAtLength) {
+    return 'The user has shared something substantive. Do not answer too briefly. Respond with a fuller, more human reflection before deciding whether a gentle single question is actually needed.';
+  }
+
+  return 'Keep the response natural and emotionally specific. Ask a question only if it genuinely helps.';
+}
 
 const vertexShader = `
 varying vec2 vUv;
@@ -280,7 +310,7 @@ export function Sanctum({ backgroundImageUrl }: SanctumProps) {
   const [webGLFailed, setWebGLFailed] = useState(false);
   
   const [messages, setMessages] = useState<{id: string, role: 'user'|'system', text: string}[]>([
-    { id: '1', role: 'system', text: "Sanctum open. I am listening." }
+    { id: '1', role: 'system', text: "我在。你可以慢慢说。" }
   ]);
   const [isThinking, setIsThinking] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
@@ -351,10 +381,10 @@ export function Sanctum({ backgroundImageUrl }: SanctumProps) {
       setMessages(prev => [...prev, { 
         id: Date.now().toString(), 
         role: 'system', 
-        text: "I'm still here. Whenever you're ready to share." 
+        text: "我还在。你想说的时候，再开口就好。"
       }]);
       setLastActivityAt(Date.now());
-    }, 30000);
+    }, 45000);
     
     return () => clearTimeout(timeout);
   }, [lastActivityAt, isThinking, messages.length]);
@@ -377,9 +407,12 @@ export function Sanctum({ backgroundImageUrl }: SanctumProps) {
       isThinkingRef.current = true;
       
       try {
+        const turnGuidance = buildTurnGuidance(userText);
+
         // Construct standard OpenAI format messages
         const apiMessages = [
           { role: 'system', content: SYSTEM_INSTRUCTION },
+          { role: 'system', content: turnGuidance },
           // Include history (excluding the first system "Sanctum open" greeting to avoid confusion, or map it properly)
           ...messages
             .filter(m => m.id !== '1' && m.text.trim()) // Skip initial & empty thinking ones
